@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Murdoku</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔪</text></svg>">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0f0f1a; color: #d4c5a9; min-height: 100vh; }
+#app { max-width: 1200px; margin: 0 auto; padding: 20px 24px; }
+header { text-align: center; margin-bottom: 20px; }
+header h1 { font-family: Georgia, 'Palatino Linotype', serif; font-size: 42px; letter-spacing: 8px; color: #c9a227; text-shadow: 0 2px 8px rgba(201,162,39,0.3); }
+header .subtitle { font-size: 13px; color: #8a7d6b; letter-spacing: 3px; text-transform: uppercase; margin-top: 2px; }
+.controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.setting { display: flex; align-items: center; gap: 6px; }
+.setting label { font-size: 13px; color: #8a7d6b; text-transform: uppercase; letter-spacing: 1px; }
+.setting select { background: #1a1a2e; color: #d4c5a9; border: 1px solid #3a3a5e; border-radius: 4px; padding: 6px 10px; font-size: 14px; cursor: pointer; }
+.controls button { background: #1a1a2e; color: #d4c5a9; border: 1px solid #3a3a5e; border-radius: 4px; padding: 8px 16px; font-size: 14px; cursor: pointer; transition: all 0.2s; letter-spacing: 1px; }
+.controls button:hover { border-color: #c9a227; color: #c9a227; }
+.controls button.primary { background: #8b0000; border-color: #8b0000; color: #faf5eb; }
+.controls button.primary:hover { background: #a00; }
+
+main { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+
+.grid-section { display: flex; flex-direction: column; align-items: center; }
+.compass { font-size: 12px; color: #6a6080; letter-spacing: 2px; text-transform: uppercase; }
+.compass-n { margin-bottom: 4px; }
+.compass-s { margin-top: 4px; }
+.grid-row-wrapper { display: flex; align-items: center; gap: 4px; }
+.compass-w, .compass-e { writing-mode: vertical-rl; transform: rotate(180deg); }
+
+.crime-scene { display: inline-grid; border: 2px solid #c9a227; position: relative; }
+.scene-cell {
+  width: 56px; height: 56px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.15s; border: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.scene-cell:hover { filter: brightness(1.3); }
+.scene-cell.has-object { cursor: default; }
+.scene-cell.has-object:hover { filter: none; }
+
+.wall-top { border-top: 3px solid #c9a227 !important; }
+.wall-bottom { border-bottom: 3px solid #c9a227 !important; }
+.wall-left { border-left: 3px solid #c9a227 !important; }
+.wall-right { border-right: 3px solid #c9a227 !important; }
+
+.room-label {
+  position: absolute; top: 2px; left: 3px;
+  font-size: 8px; color: rgba(255,255,255,0.35); text-transform: uppercase;
+  letter-spacing: 0.5px; pointer-events: none; font-weight: 600;
+}
+.object-icon { font-size: 22px; pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+.person-token {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: bold; font-size: 14px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5); z-index: 1;
+  pointer-events: none; border: 2px solid rgba(255,255,255,0.3);
+}
+.person-token.victim { border-style: dashed; }
+
+.side-panel { flex: 0 0 300px; display: flex; flex-direction: column; gap: 16px; }
+
+.panel-card {
+  background: #1a1a2e; border-radius: 8px; padding: 16px; border: 1px solid #2a2a4e;
+}
+.panel-card h3 {
+  font-family: Georgia, serif; color: #c9a227; font-size: 14px;
+  text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px;
+  padding-bottom: 6px; border-bottom: 1px solid #2a2a4e;
+}
+
+.room-legend-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.room-chip { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #c0b494; }
+.room-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); }
+
+.people-list { display: flex; flex-direction: column; gap: 6px; }
+.person-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  border-radius: 6px; cursor: pointer; transition: background 0.15s; border: 2px solid transparent;
+}
+.person-row:hover { background: #22223a; }
+.person-row.selected { border-color: #c9a227; background: #22223a; }
+.person-row.placed { opacity: 0.45; }
+.person-row .dot { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: bold; flex-shrink: 0; }
+.person-row .dot.victim-dot { border: 2px dashed rgba(255,255,255,0.5); }
+.person-row .name { font-size: 13px; color: #c0b494; }
+.person-row .tag { font-size: 10px; color: #8b0000; text-transform: uppercase; letter-spacing: 1px; margin-left: auto; }
+
+.clue-list { list-style: none; counter-reset: clue; }
+.clue-list li {
+  counter-increment: clue; padding: 6px 6px 6px 28px; position: relative;
+  font-size: 13px; line-height: 1.5; color: #c0b494;
+  border-bottom: 1px solid #1f1f38;
+}
+.clue-list li::before { content: counter(clue) "."; position: absolute; left: 6px; color: #6a6080; font-size: 11px; font-weight: bold; }
+.clue-list li:last-child { border-bottom: none; }
+
+.accusation-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.accuse-btn {
+  padding: 5px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;
+  background: #1a1a2e; border: 1px solid #3a3a5e; color: #c0b494; transition: all 0.15s;
+}
+.accuse-btn:hover { border-color: #8b0000; color: #e0a0a0; }
+.accuse-btn.accused { background: #8b0000; border-color: #8b0000; color: #faf5eb; }
+
+.message {
+  text-align: center; padding: 12px 20px; margin: 16px auto; max-width: 600px;
+  border-radius: 6px; font-size: 14px; display: none;
+}
+.message.visible { display: block; }
+.message.error { background: rgba(139,0,0,0.2); border: 1px solid #8b0000; color: #e8a0a0; }
+.message.warning { background: rgba(201,162,39,0.15); border: 1px solid #c9a227; color: #e0d4b8; }
+.message.success { background: rgba(30,132,73,0.2); border: 1px solid #1e8449; color: #a0e8b0; font-weight: bold; }
+
+.help-text { text-align: center; font-size: 11px; color: #5a5070; margin-top: 6px; }
+
+.solved .scene-cell { cursor: default; }
+.murder-room { box-shadow: inset 0 0 12px rgba(139,0,0,0.6); }
+
+@media (max-width: 900px) {
+  main { flex-direction: column; align-items: center; }
+  .side-panel { flex: none; width: 100%; max-width: 500px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>MURDOKU</h1>
+    <p class="subtitle">Sudoku meets Murder Mystery</p>
+  </header>
+  <div class="controls">
+    <div class="setting">
+      <label for="grid-size">Grid</label>
+      <select id="grid-size">
+        <option value="4">4 &times; 4</option>
+        <option value="5" selected>5 &times; 5</option>
+        <option value="6">6 &times; 6</option>
+        <option value="7">7 &times; 7</option>
+      </select>
+    </div>
+    <button class="primary" onclick="newGame()">New Case</button>
+    <button onclick="checkSolution()">Check</button>
+    <button onclick="revealSolution()">Reveal</button>
+  </div>
+  <main>
+    <div class="grid-section">
+      <div class="compass compass-n">North</div>
+      <div class="grid-row-wrapper">
+        <div class="compass compass-w">West</div>
+        <div class="crime-scene" id="crime-scene"></div>
+        <div class="compass compass-e">East</div>
+      </div>
+      <div class="compass compass-s">South</div>
+      <p class="help-text">Select a person, then click a cell to place them. Click a placed person to remove.</p>
+    </div>
+    <div class="side-panel">
+      <div class="panel-card" id="room-legend"></div>
+      <div class="panel-card" id="people-panel"></div>
+      <div class="panel-card" id="clue-panel"></div>
+      <div class="panel-card" id="accuse-panel"></div>
+    </div>
+  </main>
+  <div class="message" id="message"></div>
+</div>
+
+<script>
+const SUSPECT_NAMES = [
+  'Lady Ashworth','Dr. Hemlock','Col. Finch','Mme. Noir','Prof. Crane',
+  'Rev. Graves','Baroness Wolff','Capt. Sterling','Miss Holloway','Lord Pemberton'
+];
+const VICTIM_NAMES = [
+  'Mr. Whitmore','Mrs. Thornton','Sir Reginald','Lady Fairfax','Judge Harlow',
+  'Sen. Blake','Duchess Moreau','Major Quinn','Baroness Klee','Father Ignatius'
+];
+const ROOM_NAMES = ['Kitchen','Library','Study','Parlor','Bedroom','Dining Room','Hall','Conservatory','Cellar','Gallery'];
+const ROOM_HUES = [30,210,140,330,270,50,190,10,160,240];
+const OBJECT_TYPES = [
+  {name:'Bookshelf',emoji:'📚'},{name:'Fireplace',emoji:'🔥'},{name:'Piano',emoji:'🎹'},
+  {name:'Armchair',emoji:'🪑'},{name:'Clock',emoji:'🕰️'},{name:'Plant',emoji:'🌿'},
+  {name:'Painting',emoji:'🖼️'},{name:'Candle',emoji:'🕯️'},{name:'Desk',emoji:'🗄️'},{name:'Statue',emoji:'🗿'}
+];
+const PERSON_COLORS = ['#e74c3c','#3498db','#2ecc71','#e67e22','#9b59b6','#1abc9c','#e84393','#00b894'];
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function pickN(a,n){return shuffle([...a]).slice(0,n);}
+function roomColor(idx){const h=ROOM_HUES[idx%ROOM_HUES.length];return `hsl(${h},25%,18%)`;}
+function roomColorBright(idx){const h=ROOM_HUES[idx%ROOM_HUES.length];return `hsl(${h},35%,28%)`;}
+
+// ===== GRID GENERATION =====
+function generateRooms(size){
+  const targetRooms = size <= 4 ? 3 : size <= 5 ? 4 : size <= 6 ? 5 : 6;
+  let rects=[{r1:0,c1:0,r2:size-1,c2:size-1}];
+  while(rects.length<targetRooms){
+    rects.sort((a,b)=>{
+      const aA=(a.r2-a.r1+1)*(a.c2-a.c1+1),bA=(b.r2-b.r1+1)*(b.c2-b.c1+1);
+      return bA-aA;
+    });
+    const idx=Math.min(Math.floor(Math.random()*2),rects.length-1);
+    const rect=rects.splice(idx,1)[0];
+    const h=rect.r2-rect.r1+1,w=rect.c2-rect.c1+1;
+    if(h<2&&w<2){rects.push(rect);break;}
+    let splitH=Math.random()<0.5;
+    if(h<2)splitH=false;if(w<2)splitH=true;
+    if(splitH){
+      const s=rect.r1+1+Math.floor(Math.random()*(h-1));
+      rects.push({r1:rect.r1,c1:rect.c1,r2:s-1,c2:rect.c2});
+      rects.push({r1:s,c1:rect.c1,r2:rect.r2,c2:rect.c2});
+    } else {
+      const s=rect.c1+1+Math.floor(Math.random()*(w-1));
+      rects.push({r1:rect.r1,c1:rect.c1,r2:rect.r2,c2:s-1});
+      rects.push({r1:rect.r1,c1:s,r2:rect.r2,c2:rect.c2});
+    }
+  }
+  const grid=Array.from({length:size},()=>Array(size).fill(0));
+  rects.forEach((rect,i)=>{
+    for(let r=rect.r1;r<=rect.r2;r++)for(let c=rect.c1;c<=rect.c2;c++)grid[r][c]=i;
+  });
+  return {grid,numRooms:rects.length,rects};
+}
+
+function placeObjects(size,roomGrid,numObjects){
+  const objs=[];const used=new Set();
+  const types=shuffle([...OBJECT_TYPES]);
+  let attempts=0;
+  while(objs.length<numObjects&&attempts<200){
+    attempts++;
+    const r=Math.floor(Math.random()*size),c=Math.floor(Math.random()*size);
+    if(used.has(r*size+c))continue;
+    let rowObjs=0,colObjs=0;
+    for(const o of objs){if(o.row===r)rowObjs++;if(o.col===c)colObjs++;}
+    if(rowObjs>0||colObjs>0)continue;
+    used.add(r*size+c);
+    const t=types[objs.length%types.length];
+    objs.push({row:r,col:c,name:t.name,emoji:t.emoji});
+  }
+  return objs;
+}
+
+// ===== SOLUTION GENERATION =====
+function generateSolution(size,roomGrid,objects,victimIdx){
+  const objSet=new Set(objects.map(o=>o.row*size+o.col));
+  const validCols=[];
+  for(let r=0;r<size;r++){
+    const cols=[];
+    for(let c=0;c<size;c++){if(!objSet.has(r*size+c))cols.push(c);}
+    validCols.push(cols);
+  }
+  // Collect valid cell arrangements (N-rooks placements avoiding objects)
+  const placements=[];
+  const colAssign=new Array(size).fill(-1);
+  const usedCols=new Set();
+  function findPlacements(row){
+    if(placements.length>=40)return;
+    if(row===size){placements.push([...colAssign]);return;}
+    const cols=shuffle([...validCols[row]]);
+    for(const c of cols){
+      if(usedCols.has(c))continue;
+      colAssign[row]=c;usedCols.add(c);
+      findPlacements(row+1);
+      usedCols.delete(c);
+    }
+    colAssign[row]=-1;
+  }
+  findPlacements(0);
+  if(placements.length===0)return null;
+  // For each cell arrangement, try random person-to-row assignments
+  shuffle(placements);
+  for(const cols of placements){
+    for(let t=0;t<15;t++){
+      const perm=shuffle(Array.from({length:size},(_,i)=>i));
+      const positions=new Array(size);
+      for(let row=0;row<size;row++) positions[perm[row]]=[row,cols[row]];
+      const roomMembers={};
+      for(let p=0;p<size;p++){
+        const rm=roomGrid[positions[p][0]][positions[p][1]];
+        if(!roomMembers[rm])roomMembers[rm]=[];
+        roomMembers[rm].push(p);
+      }
+      let killer=-1,murderRoom=-1;
+      for(const[rm,members]of Object.entries(roomMembers)){
+        if(members.length===2&&members.includes(victimIdx)){
+          murderRoom=parseInt(rm);
+          killer=members.find(m=>m!==victimIdx);
+          break;
+        }
+      }
+      if(killer!==-1)return{positions,killer,murderRoom};
+    }
+  }
+  return null;
+}
+
+// ===== SOLVER =====
+function countSolutions(size,objSet,roomGrid,clues,numPeople,maxCount){
+  maxCount=maxCount||2;
+  const absClues=clues.filter(c=>c.abs);
+  const relClues=clues.filter(c=>!c.abs);
+  const allowed=[];
+  for(let i=0;i<numPeople;i++){
+    const pc=absClues.filter(c=>c.person===i);
+    const cells=[];
+    for(let r=0;r<size;r++)for(let c=0;c<size;c++){
+      if(objSet.has(r*size+c))continue;
+      if(pc.every(cl=>cl.test(r,c)))cells.push(r*size+c);
+    }
+    allowed.push(cells);
+  }
+  const order=Array.from({length:numPeople},(_,i)=>i).sort((a,b)=>allowed[a].length-allowed[b].length);
+  let count=0;
+  const placement=new Array(numPeople).fill(-1);
+  const usedR=new Set(),usedC=new Set();
+  function search(oi){
+    if(count>=maxCount)return;
+    if(oi===numPeople){count++;return;}
+    const pi=order[oi];
+    for(const enc of allowed[pi]){
+      const r=Math.floor(enc/size),c=enc%size;
+      if(usedR.has(r)||usedC.has(c))continue;
+      placement[pi]=enc;usedR.add(r);usedC.add(c);
+      let ok=true;
+      for(const cl of relClues){
+        if(placement[cl.person]===-1||placement[cl.other]===-1)continue;
+        const pA=[Math.floor(placement[cl.person]/size),placement[cl.person]%size];
+        const pB=[Math.floor(placement[cl.other]/size),placement[cl.other]%size];
+        if(!cl.check(pA,pB)){ok=false;break;}
+      }
+      if(ok)search(oi+1);
+      placement[pi]=-1;usedR.delete(r);usedC.delete(c);
+    }
+  }
+  search(0);
+  return count;
+}
+
+// ===== CLUE GENERATION =====
+const ADJ=[[-1,0],[1,0],[0,-1],[0,1]];
+
+function genCluePool(pi,pos,size,roomGrid,objects,people,roomNames,allPos){
+  const[pr,pc]=pos;const pool=[];const name=people[pi];
+  const myRoom=roomGrid[pr][pc];
+
+  pool.push({person:pi,abs:true,type:'in_room',
+    test:(r,c)=>roomGrid[r][c]===myRoom,
+    text:`${name} was in the ${roomNames[myRoom]}.`});
+
+  const numRooms=Math.max(...roomGrid.flat())+1;
+  for(let rm=0;rm<numRooms;rm++){
+    if(rm===myRoom)continue;
+    pool.push({person:pi,abs:true,type:'not_in_room',
+      test:(r,c)=>roomGrid[r][c]!==rm,
+      text:`${name} was not in the ${roomNames[rm]}.`});
+  }
+
+  for(const obj of objects){
+    const objRoom=roomGrid[obj.row][obj.col];
+    const isAdj=ADJ.some(([dr,dc])=>pr+dr===obj.row&&pc+dc===obj.col)&&myRoom===objRoom;
+    if(isAdj){
+      pool.push({person:pi,abs:true,type:'adj_obj',
+        test:(r,c)=>roomGrid[r][c]===objRoom&&ADJ.some(([dr,dc])=>r+dr===obj.row&&c+dc===obj.col),
+        text:`${name} was next to the ${obj.name}.`});
+    } else if(myRoom===objRoom){
+      pool.push({person:pi,abs:true,type:'not_adj_obj',
+        test:(r,c)=>roomGrid[r][c]!==objRoom||!ADJ.some(([dr,dc])=>r+dr===obj.row&&c+dc===obj.col),
+        text:`${name} was not next to the ${obj.name}.`});
+    }
+  }
+
+  if(pr===0)pool.push({person:pi,abs:true,type:'wall',test:(r)=>r===0,text:`${name} was along the north outer wall.`});
+  if(pr===size-1)pool.push({person:pi,abs:true,type:'wall',test:(r)=>r===size-1,text:`${name} was along the south outer wall.`});
+  if(pc===0)pool.push({person:pi,abs:true,type:'wall',test:(r,c)=>c===0,text:`${name} was along the west outer wall.`});
+  if(pc===size-1)pool.push({person:pi,abs:true,type:'wall',test:(r,c)=>c===size-1,text:`${name} was along the east outer wall.`});
+  if(pr>0&&pr<size-1&&pc>0&&pc<size-1)
+    pool.push({person:pi,abs:true,type:'not_wall',test:(r,c)=>r>0&&r<size-1&&c>0&&c<size-1,text:`${name} was not along any outer wall.`});
+
+  for(let j=0;j<people.length;j++){
+    if(j===pi)continue;
+    const[or,oc]=allPos[j];
+    if(pr<or)pool.push({person:pi,other:j,abs:false,type:'north',check:(a,b)=>a[0]<b[0],text:`${name} was north of ${people[j]}.`});
+    if(pr>or)pool.push({person:pi,other:j,abs:false,type:'south',check:(a,b)=>a[0]>b[0],text:`${name} was south of ${people[j]}.`});
+    if(pc>oc)pool.push({person:pi,other:j,abs:false,type:'east',check:(a,b)=>a[1]>b[1],text:`${name} was east of ${people[j]}.`});
+    if(pc<oc)pool.push({person:pi,other:j,abs:false,type:'west',check:(a,b)=>a[1]<b[1],text:`${name} was west of ${people[j]}.`});
+    if(Math.abs(pr-or)+Math.abs(pc-oc)===1)
+      pool.push({person:pi,other:j,abs:false,type:'adj_person',check:(a,b)=>Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])===1,text:`${name} was right next to ${people[j]}.`});
+    if(roomGrid[pr][pc]===roomGrid[or][oc])
+      pool.push({person:pi,other:j,abs:false,type:'same_room',check:(a,b)=>roomGrid[a[0]][a[1]]===roomGrid[b[0]][b[1]],text:`${name} was in the same room as ${people[j]}.`});
+    else
+      pool.push({person:pi,other:j,abs:false,type:'diff_room',check:(a,b)=>roomGrid[a[0]][a[1]]!==roomGrid[b[0]][b[1]],text:`${name} was not in the same room as ${people[j]}.`});
+  }
+  return pool;
+}
+
+function selectClues(size,roomGrid,objects,solution,people,roomNames,victimIdx){
+  const n=people.length;
+  const objSet=new Set(objects.map(o=>o.row*size+o.col));
+  const pools=[];
+  const prio={'in_room':0,'adj_obj':1,'wall':2,'adj_person':2,'not_wall':3,'same_room':3,
+    'north':4,'south':4,'east':4,'west':4,'diff_room':5,'not_adj_obj':6,'not_in_room':7};
+  for(let i=0;i<n;i++){
+    const p=genCluePool(i,solution.positions[i],size,roomGrid,objects,people,roomNames,solution.positions);
+    p.sort((a,b)=>(prio[a.type]??8)-(prio[b.type]??8));
+    pools.push(p);
+  }
+  // Start with in_room for everyone — fast baseline
+  let selected=[];
+  for(let i=0;i<n;i++){
+    const inRoom=pools[i].find(c=>c.type==='in_room');
+    if(inRoom)selected.push(inRoom);
+  }
+  let cnt=countSolutions(size,objSet,roomGrid,selected,n,50);
+  if(cnt<=0)return null;
+  // Add more clues greedily if not yet unique
+  const maxRounds=n*2;
+  for(let round=0;round<maxRounds&&cnt>1;round++){
+    let bestClue=null,bestCount=cnt;
+    const clueCounts=new Array(n).fill(0);
+    selected.forEach(c=>clueCounts[c.person]++);
+    const personOrder=shuffle(Array.from({length:n},(_,i)=>i))
+      .sort((a,b)=>clueCounts[a]-clueCounts[b]);
+    for(const pi of personOrder){
+      if(clueCounts[pi]>=3)continue;
+      let tried=0;
+      for(const clue of pools[pi]){
+        if(selected.includes(clue))continue;
+        if(tried++>=6)break;
+        const test=[...selected,clue];
+        const c2=countSolutions(size,objSet,roomGrid,test,n,Math.min(bestCount,20));
+        if(c2===1){bestClue=clue;bestCount=1;break;}
+        if(c2>0&&c2<bestCount){bestClue=clue;bestCount=c2;}
+      }
+      if(bestCount===1)break;
+    }
+    if(!bestClue)return null;
+    selected.push(bestClue);cnt=bestCount;
+  }
+  if(cnt!==1)return null;
+  // Minimize: remove redundant clues for a tighter puzzle
+  for(let i=selected.length-1;i>=0;i--){
+    const without=[...selected];without.splice(i,1);
+    if(countSolutions(size,objSet,roomGrid,without,n,2)===1)selected.splice(i,1);
+  }
+  return selected;
+}
+
+// ===== PUZZLE GENERATION =====
+function generatePuzzle(size){
+  for(let attempt=0;attempt<100;attempt++){
+    const{grid:roomGrid,numRooms}=generateRooms(size);
+    const rNames=pickN(ROOM_NAMES,numRooms);
+    const numObj=Math.max(1,size-3);
+    const objects=placeObjects(size,roomGrid,numObj);
+    const suspects=pickN(SUSPECT_NAMES,size-1);
+    const victim=pickN(VICTIM_NAMES,1)[0];
+    const people=[...suspects,victim];
+    const victimIdx=people.length-1;
+    shuffle(people);
+    const vIdx=people.indexOf(victim);
+
+    for(let solAttempt=0;solAttempt<30;solAttempt++){
+      const sol=generateSolution(size,roomGrid,objects,vIdx);
+      if(!sol)continue;
+      const clues=selectClues(size,roomGrid,objects,sol,people,rNames,vIdx);
+      if(!clues)continue;
+      return{size,roomGrid,numRooms,roomNames:rNames,objects,people,victimIdx:vIdx,
+        solution:sol,clues,killer:sol.killer,murderRoom:sol.murderRoom};
+    }
+  }
+  return null;
+}
+
+// ===== GAME STATE =====
+let game=null;
+let selectedPerson=null;
+let playerPlacements={};
+let accusedKiller=null;
+
+function getInitials(name){
+  const parts=name.replace(/[.,]/g,'').split(' ');
+  if(parts.length>=2)return(parts[0][0]+parts[1][0]).toUpperCase();
+  return name.substring(0,2).toUpperCase();
+}
+
+// ===== UI =====
+function renderAll(){
+  renderGrid();renderRoomLegend();renderPeople();renderClues();renderAccusation();clearMessage();
+}
+
+function renderGrid(){
+  const{size,roomGrid,objects,people,victimIdx}=game;
+  const el=document.getElementById('crime-scene');
+  el.style.gridTemplateColumns=`repeat(${size},56px)`;
+  el.classList.remove('solved');
+
+  const roomLabelPlaced=new Set();
+  let html='';
+  for(let r=0;r<size;r++){
+    for(let c=0;c<size;c++){
+      const rm=roomGrid[r][c];
+      const cls=[getWallClasses(r,c,roomGrid,size)];
+      const obj=objects.find(o=>o.row===r&&o.col===c);
+      if(obj)cls.push('has-object');
+      const bg=roomColor(rm);
+      html+=`<div class="scene-cell ${cls.join(' ')}" style="background:${bg}" data-r="${r}" data-c="${c}">`;
+      if(!roomLabelPlaced.has(rm)){
+        html+=`<span class="room-label">${game.roomNames[rm]}</span>`;
+        roomLabelPlaced.add(rm);
+      }
+      if(obj)html+=`<span class="object-icon">${obj.emoji}</span>`;
+      const pIdx=Object.entries(playerPlacements).find(([_,p])=>p[0]===r&&p[1]===c);
+      if(pIdx){
+        const pi=parseInt(pIdx[0]);
+        const isV=pi===victimIdx;
+        html+=`<div class="person-token ${isV?'victim':''}" style="background:${PERSON_COLORS[pi%PERSON_COLORS.length]}">${getInitials(people[pi])}</div>`;
+      }
+      html+=`</div>`;
+    }
+  }
+  el.innerHTML=html;
+  el.onclick=onGridClick;
+}
+
+function getWallClasses(r,c,g,s){
+  const rm=g[r][c];const cls=[];
+  if(r===0||g[r-1][c]!==rm)cls.push('wall-top');
+  if(r===s-1||g[r+1][c]!==rm)cls.push('wall-bottom');
+  if(c===0||g[r][c-1]!==rm)cls.push('wall-left');
+  if(c===s-1||g[r][c+1]!==rm)cls.push('wall-right');
+  return cls.join(' ');
+}
+
+function renderRoomLegend(){
+  let html=`<h3>Rooms</h3><div class="room-legend-list">`;
+  for(let i=0;i<game.numRooms;i++){
+    html+=`<div class="room-chip"><span class="room-swatch" style="background:${roomColorBright(i)}"></span>${game.roomNames[i]}</div>`;
+  }
+  html+=`</div>`;
+  document.getElementById('room-legend').innerHTML=html;
+}
+
+function renderPeople(){
+  const{people,victimIdx}=game;
+  let html=`<h3>Suspects &amp; Victim</h3><div class="people-list">`;
+  for(let i=0;i<people.length;i++){
+    const placed=playerPlacements[i]!==undefined;
+    const sel=selectedPerson===i;
+    const isV=i===victimIdx;
+    const color=PERSON_COLORS[i%PERSON_COLORS.length];
+    html+=`<div class="person-row ${sel?'selected':''} ${placed?'placed':''}" data-person="${i}">`;
+    html+=`<div class="dot ${isV?'victim-dot':''}" style="background:${color}">${getInitials(people[i])}</div>`;
+    html+=`<span class="name">${people[i]}</span>`;
+    if(isV)html+=`<span class="tag">Victim</span>`;
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  document.getElementById('people-panel').innerHTML=html;
+  document.querySelectorAll('.person-row').forEach(el=>{
+    el.addEventListener('click',()=>onPersonSelect(parseInt(el.dataset.person)));
+  });
+}
+
+function renderClues(){
+  let html=`<h3>Evidence</h3><ol class="clue-list">`;
+  for(const clue of game.clues){
+    html+=`<li>${clue.text}</li>`;
+  }
+  html+=`</ol>`;
+  document.getElementById('clue-panel').innerHTML=html;
+}
+
+function renderAccusation(){
+  const{people,victimIdx}=game;
+  let html=`<h3>Who is the Killer?</h3><div class="accusation-row">`;
+  for(let i=0;i<people.length;i++){
+    if(i===victimIdx)continue;
+    const cls=accusedKiller===i?'accused':'';
+    html+=`<button class="accuse-btn ${cls}" data-person="${i}">${people[i]}</button>`;
+  }
+  html+=`</div>`;
+  document.getElementById('accuse-panel').innerHTML=html;
+  document.querySelectorAll('.accuse-btn').forEach(el=>{
+    el.addEventListener('click',()=>{
+      accusedKiller=parseInt(el.dataset.person);
+      renderAccusation();
+    });
+  });
+}
+
+function showMessage(text,type){
+  const el=document.getElementById('message');
+  el.textContent=text;el.className='message visible '+type;
+}
+function clearMessage(){document.getElementById('message').className='message';}
+
+// ===== EVENTS =====
+function onPersonSelect(idx){
+  if(playerPlacements[idx]!==undefined){
+    delete playerPlacements[idx];
+    selectedPerson=idx;
+    renderGrid();renderPeople();
+    return;
+  }
+  selectedPerson=selectedPerson===idx?null:idx;
+  renderPeople();
+}
+
+function onGridClick(e){
+  const cell=e.target.closest('.scene-cell');
+  if(!cell||document.getElementById('crime-scene').classList.contains('solved'))return;
+  const r=parseInt(cell.dataset.r),c=parseInt(cell.dataset.c);
+
+  const existing=Object.entries(playerPlacements).find(([_,p])=>p[0]===r&&p[1]===c);
+  if(existing){
+    const pi=parseInt(existing[0]);
+    delete playerPlacements[pi];
+    selectedPerson=pi;
+    renderGrid();renderPeople();
+    return;
+  }
+
+  if(selectedPerson===null)return;
+  if(game.objects.some(o=>o.row===r&&o.col===c))return;
+
+  const rowTaken=Object.values(playerPlacements).some(p=>p[0]===r);
+  const colTaken=Object.values(playerPlacements).some(p=>p[1]===c);
+  if(rowTaken||colTaken){
+    showMessage('Each row and column can only hold one person.','warning');
+    return;
+  }
+
+  playerPlacements[selectedPerson]=[r,c];
+  selectedPerson=null;
+  clearMessage();
+  renderGrid();renderPeople();
+}
+
+function newGame(){
+  const size=parseInt(document.getElementById('grid-size').value);
+  game=generatePuzzle(size);
+  if(!game){showMessage('Failed to generate puzzle. Try again.','error');return;}
+  playerPlacements={};selectedPerson=null;accusedKiller=null;
+  renderAll();
+}
+
+function checkSolution(){
+  if(!game)return;
+  const n=game.people.length;
+  if(Object.keys(playerPlacements).length<n){
+    showMessage('Place all suspects and the victim on the grid first.','warning');return;
+  }
+  if(accusedKiller===null){
+    showMessage('Select who you think the killer is before checking.','warning');return;
+  }
+  let placementCorrect=true;
+  for(let i=0;i<n;i++){
+    const p=playerPlacements[i];
+    const s=game.solution.positions[i];
+    if(!p||p[0]!==s[0]||p[1]!==s[1]){placementCorrect=false;break;}
+  }
+  if(!placementCorrect){
+    showMessage('The placement is not correct. Review the clues and try again.','error');return;
+  }
+  if(accusedKiller!==game.killer){
+    showMessage('Your placement is correct, but you accused the wrong person! Who was alone with the victim?','warning');return;
+  }
+  const rm=game.murderRoom;
+  showMessage(`Case Closed! ${game.people[game.killer]} murdered ${game.people[game.victimIdx]} in the ${game.roomNames[rm]}!`,'success');
+  document.getElementById('crime-scene').classList.add('solved');
+  document.querySelectorAll('.scene-cell').forEach(cell=>{
+    const r=parseInt(cell.dataset.r),c=parseInt(cell.dataset.c);
+    if(game.roomGrid[r][c]===rm)cell.classList.add('murder-room');
+  });
+}
+
+function revealSolution(){
+  if(!game)return;
+  playerPlacements={};
+  game.solution.positions.forEach((pos,i)=>{playerPlacements[i]=pos;});
+  accusedKiller=game.killer;
+  renderGrid();renderPeople();renderAccusation();
+  const rm=game.murderRoom;
+  showMessage(`Revealed: ${game.people[game.killer]} murdered ${game.people[game.victimIdx]} in the ${game.roomNames[rm]}.`,'warning');
+  document.getElementById('crime-scene').classList.add('solved');
+  document.querySelectorAll('.scene-cell').forEach(cell=>{
+    const r=parseInt(cell.dataset.r),c=parseInt(cell.dataset.c);
+    if(game.roomGrid[r][c]===rm)cell.classList.add('murder-room');
+  });
+}
+
+window.addEventListener('DOMContentLoaded',()=>{newGame();});
+</script>
+</body>
+</html>

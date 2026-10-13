@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Murdoku</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #0f0f1a;
+  color: #d4c5a9;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 20px 30px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+header h1 {
+  font-family: Georgia, 'Palatino Linotype', serif;
+  font-size: 42px;
+  letter-spacing: 8px;
+  color: #c9a227;
+  text-shadow: 0 2px 8px rgba(201, 162, 39, 0.3);
+  margin-bottom: 4px;
+}
+
+header .subtitle {
+  font-size: 13px;
+  color: #8a7d6b;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.setting label {
+  font-size: 13px;
+  color: #8a7d6b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.setting select {
+  background: #1a1a2e;
+  color: #d4c5a9;
+  border: 1px solid #3a3a5e;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.setting select:hover { border-color: #c9a227; }
+
+.controls button {
+  background: #1a1a2e;
+  color: #d4c5a9;
+  border: 1px solid #3a3a5e;
+  border-radius: 4px;
+  padding: 8px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+
+.controls button:hover {
+  border-color: #c9a227;
+  color: #c9a227;
+  background: #22223a;
+}
+
+.controls button.primary {
+  background: #8b0000;
+  border-color: #8b0000;
+  color: #faf5eb;
+}
+
+.controls button.primary:hover {
+  background: #a00;
+  border-color: #a00;
+}
+
+main {
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.grid-container {
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.logic-grid {
+  border-collapse: collapse;
+  user-select: none;
+}
+
+.logic-grid th, .logic-grid td {
+  border: 1px solid #b8a88a;
+}
+
+.corner {
+  background: #1a1a2e;
+  border-color: #1a1a2e !important;
+}
+
+th.col-cat {
+  background: #2d2d44;
+  color: #c9a227;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 6px 4px;
+  font-weight: 600;
+  border-bottom: 2px solid #4a3728;
+}
+
+th.col-item {
+  background: #252540;
+  height: 100px;
+  vertical-align: bottom;
+  padding: 4px 2px;
+  font-weight: normal;
+  min-width: 28px;
+  width: 28px;
+}
+
+th.col-item span {
+  display: block;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+  color: #c0b494;
+  white-space: nowrap;
+  padding: 4px 0;
+}
+
+th.row-cat {
+  background: #2d2d44;
+  color: #c9a227;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 600;
+  width: 32px;
+  padding: 4px;
+  border-right: 2px solid #4a3728;
+}
+
+th.row-cat span {
+  display: block;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+}
+
+th.row-item {
+  background: #252540;
+  color: #c0b494;
+  font-size: 11px;
+  font-weight: normal;
+  padding: 2px 6px;
+  text-align: right;
+  white-space: nowrap;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 2px solid #4a3728;
+}
+
+td.cell {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
+  background: #faf5eb;
+  font-size: 16px;
+  line-height: 28px;
+  transition: background-color 0.1s;
+  padding: 0;
+}
+
+td.cell:hover {
+  background: #f0e8d8;
+}
+
+td.cell.eliminated {
+  color: #b03a2e;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+td.cell.confirmed {
+  color: #1e8449;
+  font-weight: bold;
+  font-size: 15px;
+  background: #e8f5e8;
+}
+
+td.cell.highlight {
+  background: #fff3cd !important;
+  box-shadow: inset 0 0 0 2px #e6ac00;
+}
+
+td.unused {
+  background: #16162a;
+  cursor: default;
+  border-color: #1e1e36;
+}
+
+.block-right { border-right: 2px solid #4a3728 !important; }
+.block-bottom { border-bottom: 2px solid #4a3728 !important; }
+
+.solved td.cell {
+  cursor: default;
+}
+
+.solved td.cell.confirmed {
+  background: #c8e6c9;
+}
+
+.clue-panel {
+  flex: 0 0 340px;
+  max-width: 400px;
+  background: #1a1a2e;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #2a2a4e;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.clue-panel h2 {
+  font-family: Georgia, 'Palatino Linotype', serif;
+  color: #c9a227;
+  font-size: 18px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2a2a4e;
+}
+
+.clue-list {
+  list-style: none;
+  counter-reset: clue;
+}
+
+.clue-list li {
+  counter-increment: clue;
+  padding: 8px 8px 8px 32px;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #c0b494;
+  border-bottom: 1px solid #1f1f38;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.clue-list li:hover {
+  background: #22223a;
+  color: #e0d4b8;
+}
+
+.clue-list li::before {
+  content: counter(clue) ".";
+  position: absolute;
+  left: 8px;
+  color: #6a6080;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.clue-list li:last-child { border-bottom: none; }
+
+.clue-list li.crossed {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.message {
+  text-align: center;
+  padding: 12px 24px;
+  margin: 16px auto;
+  max-width: 600px;
+  border-radius: 6px;
+  font-size: 15px;
+  display: none;
+}
+
+.message.visible { display: block; }
+
+.message.error {
+  background: rgba(139, 0, 0, 0.2);
+  border: 1px solid #8b0000;
+  color: #e8a0a0;
+}
+
+.message.warning {
+  background: rgba(201, 162, 39, 0.15);
+  border: 1px solid #c9a227;
+  color: #e0d4b8;
+}
+
+.message.success {
+  background: rgba(30, 132, 73, 0.2);
+  border: 1px solid #1e8449;
+  color: #a0e8b0;
+}
+
+.help-text {
+  text-align: center;
+  font-size: 12px;
+  color: #5a5070;
+  margin-top: 8px;
+}
+
+@media (max-width: 1000px) {
+  main { flex-direction: column; align-items: center; }
+  .clue-panel { flex: none; width: 100%; max-width: 600px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>MURDOKU</h1>
+    <p class="subtitle">Logic Puzzles of Murder &amp; Deduction</p>
+  </header>
+
+  <div class="controls">
+    <div class="setting">
+      <label for="num-items">Suspects</label>
+      <select id="num-items">
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+      </select>
+    </div>
+    <div class="setting">
+      <label for="num-cats">Categories</label>
+      <select id="num-cats">
+        <option value="3">3</option>
+        <option value="4" selected>4</option>
+        <option value="5">5</option>
+      </select>
+    </div>
+    <button class="primary" onclick="newGame()">New Case</button>
+    <button onclick="checkSolution()">Check Solution</button>
+    <button onclick="revealSolution()">Reveal</button>
+  </div>
+
+  <main>
+    <div>
+      <div class="grid-container" id="grid-container"></div>
+      <p class="help-text">Click: empty → ✕ → ✓ → empty &nbsp;|&nbsp; Right-click: reverse</p>
+    </div>
+    <div class="clue-panel">
+      <h2>Evidence</h2>
+      <ol class="clue-list" id="clue-list"></ol>
+    </div>
+  </main>
+
+  <div class="message" id="message"></div>
+</div>
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const CATEGORY_IDS = ['suspect', 'victim', 'weapon', 'location', 'time', 'motive'];
+const CATEGORY_NAMES = ['Suspects', 'Victims', 'Weapons', 'Locations', 'Times', 'Motives'];
+
+const NAMES = {
+  suspect: [
+    'Lady Ashworth', 'Dr. Hemlock', 'Colonel Finch', 'Madame Noir',
+    'Prof. Crane', 'Rev. Graves', 'Baroness Wolff', 'Capt. Sterling',
+    'Miss Holloway', 'Lord Pemberton'
+  ],
+  victim: [
+    'Mr. Whitmore', 'Mrs. Thornton', 'Sir Reginald', 'Lady Fairfax',
+    'Judge Harlow', 'Senator Blake', 'Duchess Moreau', 'Major Quinn',
+    'Baroness Klee', 'Father Ignatius'
+  ],
+  weapon: [
+    'Poison', 'Dagger', 'Revolver', 'Candlestick', 'Rope',
+    'Letter Opener', 'Arsenic', 'Garrote', 'Poker', 'Hatpin'
+  ],
+  location: [
+    'Study', 'Conservatory', 'Ballroom', 'Kitchen', 'Library',
+    'Wine Cellar', 'Chapel', 'Garden', 'Observatory', 'Parlor'
+  ],
+  time: [
+    'Midnight', 'Dawn', 'Sunrise', 'Noon', 'Dusk',
+    'Twilight', 'Nightfall', 'Sundown', 'Daybreak', 'Teatime'
+  ],
+  motive: [
+    'Jealousy', 'Greed', 'Revenge', 'Blackmail', 'Ambition',
+    'Betrayal', 'Desperation', 'Fear', 'Obsession', 'Rivalry'
+  ]
+};
+
+const CLUE_TEMPLATES = {
+  'suspect-victim': {
+    positive: ['{a} murdered {b}', '{a} is guilty of killing {b}'],
+    negative: ['{a} did not murder {b}', '{b} was not killed by {a}'],
+    eitherOr: '{a} murdered either {b1} or {b2}'
+  },
+  'suspect-weapon': {
+    positive: ['{a} used the {b}', '{a} struck with the {b}'],
+    negative: ['{a} did not use the {b}', 'The {b} was not wielded by {a}'],
+    eitherOr: '{a} used either the {b1} or the {b2}'
+  },
+  'suspect-location': {
+    positive: ['{a} committed the murder in the {b}', '{a} struck in the {b}'],
+    negative: ['{a} was not in the {b}', 'The murder in the {b} was not by {a}'],
+    eitherOr: '{a} struck in either the {b1} or the {b2}'
+  },
+  'suspect-time': {
+    positive: ['{a} struck at {b}', '{a} committed the murder at {b}'],
+    negative: ['{a} did not act at {b}', 'The murder at {b} was not by {a}'],
+    eitherOr: '{a} acted at either {b1} or {b2}'
+  },
+  'suspect-motive': {
+    positive: ['{a} was driven by {b}', '{a} acted out of {b}'],
+    negative: ['{a} was not motivated by {b}', '{b} was not the motive of {a}'],
+    eitherOr: '{a} was driven by either {b1} or {b2}'
+  },
+  'victim-weapon': {
+    positive: ['{a} was killed with the {b}', 'The {b} was used on {a}'],
+    negative: ['{a} was not killed with the {b}', 'The {b} was not used on {a}'],
+    eitherOr: '{a} was killed with either the {b1} or the {b2}'
+  },
+  'victim-location': {
+    positive: ['{a} was found dead in the {b}', '{a} met their end in the {b}'],
+    negative: ['{a} was not found in the {b}', 'No one died in the {b} at {a}\'s hand'],
+    eitherOr: '{a} was found in either the {b1} or the {b2}'
+  },
+  'victim-time': {
+    positive: ['{a} was killed at {b}', 'The murder of {a} occurred at {b}'],
+    negative: ['{a} was not killed at {b}', 'The murder at {b} did not claim {a}'],
+    eitherOr: '{a} was killed at either {b1} or {b2}'
+  },
+  'victim-motive': {
+    positive: ['The murder of {a} was motivated by {b}', '{a} was killed out of {b}'],
+    negative: ['{a}\'s death was not caused by {b}', '{b} was not behind {a}\'s murder'],
+    eitherOr: '{a} was killed out of either {b1} or {b2}'
+  },
+  'weapon-location': {
+    positive: ['The {a} was used in the {b}', 'The murder in the {b} involved the {a}'],
+    negative: ['The {a} was not used in the {b}', 'The {b} murder did not involve the {a}'],
+    eitherOr: 'The {a} was used in either the {b1} or the {b2}'
+  },
+  'weapon-time': {
+    positive: ['The {a} was used at {b}', 'At {b}, the {a} was the weapon'],
+    negative: ['The {a} was not used at {b}', 'At {b}, the {a} was not involved'],
+    eitherOr: 'The {a} was used at either {b1} or {b2}'
+  },
+  'weapon-motive': {
+    positive: ['The {a} was used in a crime of {b}', '{b} drove the murder involving the {a}'],
+    negative: ['The {a} was not used in a crime of {b}', '{b} was not behind the {a} murder'],
+    eitherOr: 'The {a} was involved in a crime of either {b1} or {b2}'
+  },
+  'location-time': {
+    positive: ['The murder in the {a} happened at {b}', 'At {b}, the {a} became a crime scene'],
+    negative: ['The murder in the {a} did not happen at {b}', 'At {b}, the {a} was peaceful'],
+    eitherOr: 'The murder in the {a} happened at either {b1} or {b2}'
+  },
+  'location-motive': {
+    positive: ['{b} drove the murder in the {a}', 'The crime in the {a} was fueled by {b}'],
+    negative: ['{b} was not behind the murder in the {a}'],
+    eitherOr: 'The murder in the {a} was driven by either {b1} or {b2}'
+  },
+  'time-motive': {
+    positive: ['The murder at {a} was driven by {b}', 'At {a}, {b} was the motive'],
+    negative: ['The murder at {a} was not driven by {b}', 'At {a}, {b} was not the motive'],
+    eitherOr: 'The murder at {a} was driven by either {b1} or {b2}'
+  }
+};
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function pickN(arr, n) {
+  return shuffle([...arr]).slice(0, n);
+}
+
+// ============================================================
+// SOLVER
+// ============================================================
+class Solver {
+  constructor(n, m) {
+    this.n = n;
+    this.m = m;
+    this.contradiction = false;
+    this.grid = {};
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        this.grid[`${i},${j}`] = Array.from({ length: m }, () => Array(m).fill(true));
+      }
+    }
+  }
+
+  get(ci, ai, cj, aj) {
+    if (ci === cj) return ai === aj;
+    if (ci > cj) { const tc = ci, ta = ai; ci = cj; ai = aj; cj = tc; aj = ta; }
+    return this.grid[`${ci},${cj}`][ai][aj];
+  }
+
+  set(ci, ai, cj, aj, val) {
+    if (ci > cj) { const tc = ci, ta = ai; ci = cj; ai = aj; cj = tc; aj = ta; }
+    this.grid[`${ci},${cj}`][ai][aj] = val;
+  }
+
+  eliminate(ci, ai, cj, aj) {
+    this.set(ci, ai, cj, aj, false);
+  }
+
+  confirm(ci, ai, cj, aj) {
+    for (let x = 0; x < this.m; x++) {
+      if (x !== aj) this.eliminate(ci, ai, cj, x);
+      if (x !== ai) this.eliminate(ci, x, cj, aj);
+    }
+  }
+
+  propagate() {
+    let changed = true;
+    let iters = 0;
+    while (changed && !this.contradiction && iters < 500) {
+      changed = false;
+      iters++;
+
+      for (let i = 0; i < this.n; i++) {
+        for (let j = i + 1; j < this.n; j++) {
+          const g = this.grid[`${i},${j}`];
+
+          for (let a = 0; a < this.m; a++) {
+            let cnt = 0, last = -1;
+            for (let b = 0; b < this.m; b++) { if (g[a][b]) { cnt++; last = b; } }
+            if (cnt === 0) { this.contradiction = true; return; }
+            if (cnt === 1) {
+              for (let x = 0; x < this.m; x++) {
+                if (x !== a && g[x][last]) { g[x][last] = false; changed = true; }
+              }
+            }
+          }
+
+          for (let b = 0; b < this.m; b++) {
+            let cnt = 0, last = -1;
+            for (let a = 0; a < this.m; a++) { if (g[a][b]) { cnt++; last = a; } }
+            if (cnt === 0) { this.contradiction = true; return; }
+            if (cnt === 1) {
+              for (let x = 0; x < this.m; x++) {
+                if (x !== b && g[last][x]) { g[last][x] = false; changed = true; }
+              }
+            }
+          }
+        }
+      }
+
+      for (let ci = 0; ci < this.n; ci++) {
+        for (let cj = 0; cj < this.n; cj++) {
+          if (ci === cj) continue;
+          for (let a = 0; a < this.m; a++) {
+            let cnt = 0, cb = -1;
+            for (let b = 0; b < this.m; b++) {
+              if (this.get(ci, a, cj, b)) { cnt++; cb = b; }
+            }
+            if (cnt !== 1) continue;
+            for (let ck = 0; ck < this.n; ck++) {
+              if (ck === ci || ck === cj) continue;
+              for (let c = 0; c < this.m; c++) {
+                const p1 = this.get(ci, a, ck, c);
+                const p2 = this.get(cj, cb, ck, c);
+                if (p1 && !p2) { this.set(ci, a, ck, c, false); changed = true; }
+                if (!p1 && p2) { this.set(cj, cb, ck, c, false); changed = true; }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  isSolved() {
+    if (this.contradiction) return false;
+    for (let i = 0; i < this.n; i++) {
+      for (let j = i + 1; j < this.n; j++) {
+        const g = this.grid[`${i},${j}`];
+        for (let a = 0; a < this.m; a++) {
+          let cnt = 0;
+          for (let b = 0; b < this.m; b++) { if (g[a][b]) cnt++; }
+          if (cnt !== 1) return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  clone() {
+    const c = new Solver(this.n, this.m);
+    c.contradiction = this.contradiction;
+    for (const key of Object.keys(this.grid)) {
+      c.grid[key] = this.grid[key].map(row => [...row]);
+    }
+    return c;
+  }
+}
+
+// ============================================================
+// PUZZLE GENERATION
+// ============================================================
+function generateSolution(n, m) {
+  const base = Array.from({ length: m }, (_, i) => i);
+  const groups = [];
+  const perms = [base];
+  for (let c = 1; c < n; c++) perms.push(shuffle([...base]));
+  for (let g = 0; g < m; g++) {
+    groups.push(perms.map(p => p[g]));
+  }
+  return groups;
+}
+
+function arePaired(solution, ci, ai, cj, aj) {
+  return solution.some(g => g[ci] === ai && g[cj] === aj);
+}
+
+function buildCluePool(solution, n, m) {
+  const pool = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      for (const g of solution) {
+        pool.push({ type: 'positive', catA: i, itemA: g[i], catB: j, itemB: g[j] });
+      }
+      for (let a = 0; a < m; a++) {
+        for (let b = 0; b < m; b++) {
+          if (!arePaired(solution, i, a, j, b)) {
+            pool.push({ type: 'negative', catA: i, itemA: a, catB: j, itemB: b });
+          }
+        }
+      }
+      for (let a = 0; a < m; a++) {
+        const correctB = solution.find(g => g[i] === a)[j];
+        for (let wrongB = 0; wrongB < m; wrongB++) {
+          if (wrongB !== correctB) {
+            pool.push({ type: 'either_or', catA: i, itemA: a, catB: j, options: [correctB, wrongB] });
+          }
+        }
+      }
+    }
+  }
+  return pool;
+}
+
+function applyClue(solver, clue) {
+  if (clue.type === 'positive') {
+    solver.confirm(clue.catA, clue.itemA, clue.catB, clue.itemB);
+  } else if (clue.type === 'negative') {
+    solver.eliminate(clue.catA, clue.itemA, clue.catB, clue.itemB);
+  } else if (clue.type === 'either_or') {
+    for (let b = 0; b < solver.m; b++) {
+      if (!clue.options.includes(b)) {
+        solver.eliminate(clue.catA, clue.itemA, clue.catB, b);
+      }
+    }
+  }
+}
+
+function statesEqual(s1, s2) {
+  for (const key of Object.keys(s1.grid)) {
+    const g1 = s1.grid[key], g2 = s2.grid[key];
+    for (let a = 0; a < s1.m; a++) {
+      for (let b = 0; b < s1.m; b++) {
+        if (g1[a][b] !== g2[a][b]) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function tryGenerate(n, m) {
+  const solution = generateSolution(n, m);
+  const pool = buildCluePool(solution, n, m);
+  shuffle(pool);
+
+  const positives = pool.filter(c => c.type === 'positive');
+  const negatives = pool.filter(c => c.type === 'negative');
+  const eitherOrs = pool.filter(c => c.type === 'either_or');
+  shuffle(positives); shuffle(negatives); shuffle(eitherOrs);
+
+  const ordered = [];
+  let pi = 0, ni = 0, ei = 0;
+  const addFrom = (arr, idx) => { if (idx < arr.length) { ordered.push(arr[idx]); return idx + 1; } return idx; };
+  while (pi < positives.length || ni < negatives.length || ei < eitherOrs.length) {
+    pi = addFrom(positives, pi);
+    ni = addFrom(negatives, ni);
+    ni = addFrom(negatives, ni);
+    ei = addFrom(eitherOrs, ei);
+  }
+
+  const selected = [];
+  let solver = new Solver(n, m);
+
+  for (const clue of ordered) {
+    const test = solver.clone();
+    applyClue(test, clue);
+    test.propagate();
+    if (test.contradiction) continue;
+    if (statesEqual(solver, test)) continue;
+
+    selected.push(clue);
+    solver = test;
+
+    if (solver.isSolved()) {
+      return { solution, clues: minimizeClues(selected, n, m) };
+    }
+  }
+  return null;
+}
+
+function minimizeClues(clues, n, m) {
+  const active = new Array(clues.length).fill(true);
+  for (let i = clues.length - 1; i >= 0; i--) {
+    active[i] = false;
+    const solver = new Solver(n, m);
+    for (let j = 0; j < clues.length; j++) {
+      if (active[j]) applyClue(solver, clues[j]);
+    }
+    solver.propagate();
+    if (!solver.isSolved()) active[i] = true;
+  }
+  return clues.filter((_, i) => active[i]);
+}
+
+function generatePuzzle(numCats, numItems) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const result = tryGenerate(numCats, numItems);
+    if (result) return result;
+  }
+  return null;
+}
+
+// ============================================================
+// CLUE TEXT
+// ============================================================
+function getClueText(clue, catIds, items) {
+  const key = catIds[clue.catA] + '-' + catIds[clue.catB];
+  const templates = CLUE_TEMPLATES[key];
+  if (!templates) return 'Unknown relationship.';
+
+  const a = items[clue.catA][clue.itemA];
+
+  if (clue.type === 'positive') {
+    const b = items[clue.catB][clue.itemB];
+    const t = templates.positive[Math.floor(Math.random() * templates.positive.length)];
+    return t.replace('{a}', a).replace('{b}', b);
+  } else if (clue.type === 'negative') {
+    const b = items[clue.catB][clue.itemB];
+    const t = templates.negative[Math.floor(Math.random() * templates.negative.length)];
+    return t.replace('{a}', a).replace('{b}', b);
+  } else {
+    const opts = [...clue.options];
+    if (Math.random() < 0.5) opts.reverse();
+    return templates.eitherOr
+      .replace('{a}', a)
+      .replace('{b1}', items[clue.catB][opts[0]])
+      .replace('{b2}', items[clue.catB][opts[1]]);
+  }
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let game = null;
+let playerMarks = {};
+
+// ============================================================
+// UI
+// ============================================================
+function renderGrid() {
+  const n = game.numCats;
+  const m = game.numItems;
+  const items = game.items;
+  const catNames = game.catNames;
+
+  let html = '<table class="logic-grid" id="logic-grid">';
+
+  html += '<thead>';
+  html += `<tr><th class="corner" colspan="2" rowspan="2"></th>`;
+  for (let c = 1; c < n; c++) {
+    const rightCls = 'block-right';
+    html += `<th class="col-cat ${rightCls}" colspan="${m}">${catNames[c]}</th>`;
+  }
+  html += '</tr><tr>';
+  for (let c = 1; c < n; c++) {
+    for (let b = 0; b < m; b++) {
+      const cls = b === m - 1 ? 'block-right' : '';
+      html += `<th class="col-item ${cls}"><span>${items[c][b]}</span></th>`;
+    }
+  }
+  html += '</tr></thead>';
+
+  html += '<tbody>';
+  for (let r = 0; r < n - 1; r++) {
+    for (let a = 0; a < m; a++) {
+      html += '<tr>';
+      if (a === 0) {
+        html += `<th class="row-cat" rowspan="${m}"><span>${catNames[r]}</span></th>`;
+      }
+      const btm = a === m - 1 ? 'block-bottom' : '';
+      html += `<th class="row-item ${btm}">${items[r][a]}</th>`;
+
+      for (let c = 0; c < n - 1; c++) {
+        const colCat = c + 1;
+        for (let b = 0; b < m; b++) {
+          const rightCls = b === m - 1 ? 'block-right' : '';
+          const btmCls = a === m - 1 ? 'block-bottom' : '';
+          const cls = `${rightCls} ${btmCls}`.trim();
+          if (r < colCat) {
+            html += `<td class="cell ${cls}" data-ci="${r}" data-ai="${a}" data-cj="${colCat}" data-aj="${b}"></td>`;
+          } else {
+            html += `<td class="unused ${cls}"></td>`;
+          }
+        }
+      }
+      html += '</tr>';
+    }
+  }
+  html += '</tbody></table>';
+
+  document.getElementById('grid-container').innerHTML = html;
+
+  const table = document.getElementById('logic-grid');
+  table.addEventListener('click', onGridClick);
+  table.addEventListener('contextmenu', onGridRightClick);
+}
+
+function renderClues() {
+  const list = document.getElementById('clue-list');
+  list.innerHTML = '';
+  game.clueTexts = [];
+  for (let i = 0; i < game.clues.length; i++) {
+    const text = getClueText(game.clues[i], game.catIds, game.items);
+    game.clueTexts.push(text);
+    const li = document.createElement('li');
+    li.textContent = text;
+    li.addEventListener('mouseenter', () => highlightClue(i));
+    li.addEventListener('mouseleave', clearHighlights);
+    li.addEventListener('click', () => li.classList.toggle('crossed'));
+    list.appendChild(li);
+  }
+}
+
+function updateCellDisplay(ci, ai, cj, aj) {
+  const cell = document.querySelector(`td[data-ci="${ci}"][data-ai="${ai}"][data-cj="${cj}"][data-aj="${aj}"]`);
+  if (!cell) return;
+  const state = playerMarks[`${ci},${ai},${cj},${aj}`] || 'empty';
+  cell.classList.remove('eliminated', 'confirmed');
+  if (state === 'eliminated') {
+    cell.classList.add('eliminated');
+    cell.textContent = '✕';
+  } else if (state === 'confirmed') {
+    cell.classList.add('confirmed');
+    cell.textContent = '✓';
+  } else {
+    cell.textContent = '';
+  }
+}
+
+function highlightClue(idx) {
+  clearHighlights();
+  const clue = game.clues[idx];
+  if (clue.type === 'positive' || clue.type === 'negative') {
+    highlightCell(clue.catA, clue.itemA, clue.catB, clue.itemB);
+  } else if (clue.type === 'either_or') {
+    for (const opt of clue.options) {
+      highlightCell(clue.catA, clue.itemA, clue.catB, opt);
+    }
+  }
+}
+
+function highlightCell(ci, ai, cj, aj) {
+  if (ci > cj) { const tc = ci, ta = ai; ci = cj; ai = aj; cj = tc; aj = ta; }
+  const cell = document.querySelector(`td[data-ci="${ci}"][data-ai="${ai}"][data-cj="${cj}"][data-aj="${aj}"]`);
+  if (cell) cell.classList.add('highlight');
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.cell.highlight').forEach(c => c.classList.remove('highlight'));
+}
+
+function showMessage(text, type) {
+  const el = document.getElementById('message');
+  el.textContent = text;
+  el.className = 'message visible ' + type;
+}
+
+function clearMessage() {
+  const el = document.getElementById('message');
+  el.className = 'message';
+  el.textContent = '';
+}
+
+// ============================================================
+// EVENT HANDLERS
+// ============================================================
+function onGridClick(e) {
+  const cell = e.target.closest('td.cell');
+  if (!cell || cell.closest('.solved')) return;
+  const ci = +cell.dataset.ci, ai = +cell.dataset.ai;
+  const cj = +cell.dataset.cj, aj = +cell.dataset.aj;
+  const key = `${ci},${ai},${cj},${aj}`;
+  const cur = playerMarks[key] || 'empty';
+  if (cur === 'empty') playerMarks[key] = 'eliminated';
+  else if (cur === 'eliminated') playerMarks[key] = 'confirmed';
+  else playerMarks[key] = 'empty';
+  updateCellDisplay(ci, ai, cj, aj);
+}
+
+function onGridRightClick(e) {
+  e.preventDefault();
+  const cell = e.target.closest('td.cell');
+  if (!cell || cell.closest('.solved')) return;
+  const ci = +cell.dataset.ci, ai = +cell.dataset.ai;
+  const cj = +cell.dataset.cj, aj = +cell.dataset.aj;
+  const key = `${ci},${ai},${cj},${aj}`;
+  const cur = playerMarks[key] || 'empty';
+  if (cur === 'empty') playerMarks[key] = 'confirmed';
+  else if (cur === 'confirmed') playerMarks[key] = 'eliminated';
+  else playerMarks[key] = 'empty';
+  updateCellDisplay(ci, ai, cj, aj);
+}
+
+function newGame() {
+  const numCats = parseInt(document.getElementById('num-cats').value);
+  const numItems = parseInt(document.getElementById('num-items').value);
+  const catIds = CATEGORY_IDS.slice(0, numCats);
+  const catNames = CATEGORY_NAMES.slice(0, numCats);
+  const items = catIds.map(id => pickN(NAMES[id], numItems));
+
+  clearMessage();
+
+  const result = generatePuzzle(numCats, numItems);
+  if (!result) {
+    showMessage('Failed to generate puzzle. Please try again.', 'error');
+    return;
+  }
+
+  game = {
+    numCats,
+    numItems,
+    catIds,
+    catNames,
+    items,
+    solution: result.solution,
+    clues: result.clues,
+    clueTexts: []
+  };
+
+  playerMarks = {};
+  renderGrid();
+  renderClues();
+
+  const table = document.getElementById('logic-grid');
+  if (table) table.classList.remove('solved');
+}
+
+function checkSolution() {
+  if (!game) return;
+  const n = game.numCats, m = game.numItems;
+  let complete = true, correct = true;
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      for (let a = 0; a < m; a++) {
+        let hasConfirmed = false;
+        for (let b = 0; b < m; b++) {
+          const state = playerMarks[`${i},${a},${j},${b}`] || 'empty';
+          if (state === 'confirmed') {
+            hasConfirmed = true;
+            if (!arePaired(game.solution, i, a, j, b)) correct = false;
+          }
+        }
+        if (!hasConfirmed) complete = false;
+      }
+    }
+  }
+
+  if (!correct) showMessage('Your deductions contain errors. Review the evidence carefully.', 'error');
+  else if (!complete) showMessage('Your investigation is not yet complete. Keep deducing!', 'warning');
+  else {
+    showMessage('Case Closed! You have solved all the murders. Brilliant work, detective!', 'success');
+    document.getElementById('logic-grid').classList.add('solved');
+  }
+}
+
+function revealSolution() {
+  if (!game) return;
+  const n = game.numCats, m = game.numItems;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      for (let a = 0; a < m; a++) {
+        for (let b = 0; b < m; b++) {
+          const key = `${i},${a},${j},${b}`;
+          playerMarks[key] = arePaired(game.solution, i, a, j, b) ? 'confirmed' : 'eliminated';
+          updateCellDisplay(i, a, j, b);
+        }
+      }
+    }
+  }
+  showMessage('The solution has been revealed.', 'warning');
+  document.getElementById('logic-grid').classList.add('solved');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => { newGame(); });
+</script>
+</body>
+</html>
